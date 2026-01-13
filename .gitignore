@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# Terraform
+*.tfstate
+.terraform/
+
+# Customer data - DON'T commit actual configs!
+*.xml
+!examples/*.xml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test outputs
+test_output/
+output_*/
+split_configs/
+*-tf/
+
+# Temporary files
+*.tmp
+*.log
+
+

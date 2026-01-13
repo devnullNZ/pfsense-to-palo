@@ -1,0 +1,278 @@
+pfSense to PAN-OS VPN Migration Guide
+================================================================================
+
+⚠️  CRITICAL: VPN Configuration Requires Manual Steps
+
+This guide covers migrating VPN configurations from pfSense to Palo Alto Networks.
+
+IPsec Site-to-Site VPN Migration
+================================================================================
+
+Found 2 IPsec tunnel(s) in pfSense configuration.
+
+
+Tunnel 1: VPN to Remote Office
+--------------------------------------------------------------------------------
+IKE Configuration:
+  Version: ikev2
+  Remote Gateway: 203.0.113.50
+  Interface: wan
+  
+Authentication:
+  Method: pre_shared_key
+  Pre-Shared Key: MySecretPreSharedKey123
+  Local ID Type: myaddress
+  Local ID Data: N/A
+  Peer ID Type: peeraddress
+  Peer ID Data: N/A
+
+Phase 1 Proposal:
+  Encryption: aes256
+  Hash: sha256
+  DH Group: 14
+  Lifetime: 28800 seconds (8 hours)
+
+Phase 2 Configurations:
+
+  Phase 2 #1: Remote Office Tunnel
+    Local Subnet: 192.168.1.0/24
+    Remote Subnet: 10.99.0.0/24
+    Protocol: esp
+    Encryption: aes256
+    Hash: hmac_sha256
+    PFS Group: 14
+    Lifetime: 3600 seconds (1 hours)
+
+PAN-OS Configuration Steps:
+  1. Navigate to Network → Network Profiles → IKE Crypto
+     - Create profile matching Phase 1 parameters
+  
+  2. Navigate to Network → Network Profiles → IPsec Crypto
+     - Create profile(s) matching Phase 2 parameters
+  
+  3. Navigate to Network → Network Profiles → IKE Gateways
+     - Create IKE gateway with:
+       * Peer Address: 203.0.113.50
+       * Pre-shared Key: (enter manually)
+       * IKE Crypto Profile: (from step 1)
+  
+  4. Navigate to Network → IPsec Tunnels
+     - Create tunnel with:
+       * Tunnel Interface: tunnel.1
+       * IKE Gateway: (from step 3)
+       * IPsec Crypto Profile: (from step 2)
+  
+  5. Assign tunnel interface to security zone
+  
+  6. Create security policies for VPN traffic
+
+
+Tunnel 2: VPN to Datacenter
+--------------------------------------------------------------------------------
+IKE Configuration:
+  Version: ikev2
+  Remote Gateway: 198.51.100.75
+  Interface: wan
+  
+Authentication:
+  Method: pre_shared_key
+  Pre-Shared Key: AnotherSecretKey456
+  Local ID Type: myaddress
+  Local ID Data: N/A
+  Peer ID Type: peeraddress
+  Peer ID Data: N/A
+
+Phase 1 Proposal:
+  Encryption: aes256
+  Hash: sha256
+  DH Group: 14
+  Lifetime: 28800 seconds (8 hours)
+
+Phase 2 Configurations:
+
+  Phase 2 #1: Datacenter Tunnel
+    Local Subnet: 192.168.1.0/24
+    Remote Subnet: 172.16.0.0/16
+    Protocol: esp
+    Encryption: aes256
+    Hash: hmac_sha256
+    PFS Group: 14
+    Lifetime: 3600 seconds (1 hours)
+
+PAN-OS Configuration Steps:
+  1. Navigate to Network → Network Profiles → IKE Crypto
+     - Create profile matching Phase 1 parameters
+  
+  2. Navigate to Network → Network Profiles → IPsec Crypto
+     - Create profile(s) matching Phase 2 parameters
+  
+  3. Navigate to Network → Network Profiles → IKE Gateways
+     - Create IKE gateway with:
+       * Peer Address: 198.51.100.75
+       * Pre-shared Key: (enter manually)
+       * IKE Crypto Profile: (from step 1)
+  
+  4. Navigate to Network → IPsec Tunnels
+     - Create tunnel with:
+       * Tunnel Interface: tunnel.2
+       * IKE Gateway: (from step 3)
+       * IPsec Crypto Profile: (from step 2)
+  
+  5. Assign tunnel interface to security zone
+  
+  6. Create security policies for VPN traffic
+
+
+
+OpenVPN Migration → GlobalProtect
+================================================================================
+
+pfSense OpenVPN cannot be directly migrated to PAN-OS.
+Recommended alternative: GlobalProtect
+
+OpenVPN Servers Found: 1
+OpenVPN Clients Found: 0
+
+
+OpenVPN Server: Road Warrior VPN
+--------------------------------------------------------------------------------
+Configuration:
+  Mode: server_tls
+  Protocol: udp
+  Port: 1194
+  Tunnel Network: 10.8.0.0/24
+  Local Network: 192.168.1.0/24
+  Encryption: AES-256-CBC
+  Digest: SHA256
+
+Migration to GlobalProtect:
+  1. Requires GlobalProtect license
+  2. Navigate to Network → GlobalProtect → Portals
+  3. Configure portal for remote user access
+  4. Navigate to Network → GlobalProtect → Gateways
+  5. Configure gateway matching VPN requirements
+  6. Import/create certificates for SSL VPN
+  7. Configure authentication (local, RADIUS, LDAP, SAML)
+  8. Set up tunnel configuration
+  9. Deploy GlobalProtect client to users
+  10. Migrate user authentication database
+
+
+VPN Migration Checklist
+================================================================================
+
+IPsec Site-to-Site VPN:
+ □ Document all pre-shared keys securely
+ □ Note all Phase 1 and Phase 2 parameters
+ □ Verify remote peer requirements/compatibility
+ □ Create IKE crypto profiles in PAN-OS
+ □ Create IPsec crypto profiles in PAN-OS
+ □ Configure IKE gateways
+ □ Configure IPsec tunnels
+ □ Assign tunnel interfaces to zones
+ □ Create security policies for VPN traffic
+ □ Configure routing for VPN subnets
+ □ Test VPN establishment
+ □ Verify traffic flow through VPN
+ □ Monitor VPN logs
+
+OpenVPN → GlobalProtect Migration:
+ □ Verify GlobalProtect license
+ □ Plan authentication migration
+ □ Export/migrate user database
+ □ Configure GlobalProtect portal
+ □ Configure GlobalProtect gateway
+ □ Import certificates
+ □ Test with pilot users
+ □ Deploy GlobalProtect client
+ □ Migrate users in phases
+ □ Decommission OpenVPN
+
+Common VPN Migration Issues
+================================================================================
+
+1. PHASE 1/2 MISMATCH
+   - Verify encryption algorithms match
+   - Check hash algorithms
+   - Confirm DH group compatibility
+   - Validate lifetimes
+
+2. NAT TRAVERSAL
+   - PAN-OS auto-detects NAT-T
+   - Ensure UDP 4500 is allowed
+   - Check NAT-T settings on remote peer
+
+3. PROXY IDs
+   - PAN-OS uses proxy IDs differently
+   - May need multiple tunnels for multiple subnets
+   - Route-based VPN recommended for flexibility
+
+4. CERTIFICATE AUTHENTICATION
+   - Requires certificate import to PAN-OS
+   - Configure certificate profile
+   - Match DN/SAN requirements
+
+5. SPLIT TUNNEL
+   - GlobalProtect handles differently than OpenVPN
+   - Configure traffic selection carefully
+   - Test routing for split tunnel scenarios
+
+Testing Procedures
+================================================================================
+
+Phase 1 Testing:
+  1. Check IKE gateway status: Network → IPsec Tunnels
+  2. Verify Phase 1 establishment in Monitor → Logs → System
+  3. Check for Phase 1 errors
+  4. Validate peer connectivity
+
+Phase 2 Testing:
+  1. Generate interesting traffic
+  2. Verify Phase 2 (SA) establishment
+  3. Check Monitor → Logs → System for IPsec events
+  4. Validate encryption/decryption counters
+
+Traffic Testing:
+  1. Ping from local to remote subnet
+  2. Check traffic logs: Monitor → Logs → Traffic
+  3. Verify correct zone enforcement
+  4. Test application traffic
+  5. Monitor tunnel statistics
+
+GlobalProtect Testing:
+  1. Test portal connectivity
+  2. Verify client connects to gateway
+  3. Check tunnel establishment
+  4. Validate split tunnel routing
+  5. Test application access
+  6. Verify authentication
+
+Troubleshooting Commands
+================================================================================
+
+CLI Commands for VPN Debugging:
+
+  # Show IPsec tunnels
+  show vpn ipsec-sa
+  
+  # Show IKE gateways
+  show vpn ike-sa
+  
+  # Show GlobalProtect gateways
+  show global-protect-gateway current-user
+  
+  # Show IPsec flow
+  show vpn flow
+  
+  # Debug IKE (caution in production)
+  debug ike global on
+  debug ike pcap on
+  
+  # Clear IPsec SA
+  clear vpn ipsec-sa
+  
+  # Clear IKE SA
+  clear vpn ike-sa
+
+---
+Generated: 2026-01-13 12:46:59
