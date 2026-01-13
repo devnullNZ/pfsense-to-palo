@@ -1,0 +1,493 @@
+<?xml version="1.0"?>
+<pfsense>
+  <version>23.09</version>
+  <lastchange/>
+  
+  <system>
+    <hostname>firewall</hostname>
+    <domain>example.com</domain>
+    <timezone>America/New_York</timezone>
+    <timeservers>pool.ntp.org</timeservers>
+    <language>en_US</language>
+  </system>
+  
+  <interfaces>
+    <wan>
+      <enable/>
+      <if>igb0</if>
+      <descr>WAN</descr>
+      <spoofmac/>
+      <ipaddr>dhcp</ipaddr>
+      <ipaddrv6>dhcp6</ipaddrv6>
+      <subnet/>
+      <gateway/>
+      <blockbogons>on</blockbogons>
+    </wan>
+    <lan>
+      <enable/>
+      <if>igb1</if>
+      <descr>LAN</descr>
+      <ipaddr>192.168.1.1</ipaddr>
+      <subnet>24</subnet>
+      <ipaddrv6>track6</ipaddrv6>
+      <subnetv6>64</subnetv6>
+      <track6-interface>wan</track6-interface>
+      <track6-prefix-id>0</track6-prefix-id>
+    </lan>
+    <opt1>
+      <enable/>
+      <if>igb2</if>
+      <descr>DMZ</descr>
+      <ipaddr>10.0.10.1</ipaddr>
+      <subnet>24</subnet>
+    </opt1>
+    <opt2>
+      <enable/>
+      <if>igb3</if>
+      <descr>GUEST</descr>
+      <ipaddr>10.0.20.1</ipaddr>
+      <subnet>24</subnet>
+    </opt2>
+  </interfaces>
+  
+  <vlans>
+    <vlan>
+      <if>igb1</if>
+      <tag>100</tag>
+      <descr>VLAN100-Management</descr>
+      <vlanif>igb1.100</vlanif>
+    </vlan>
+    <vlan>
+      <if>igb1</if>
+      <tag>200</tag>
+      <descr>VLAN200-Servers</descr>
+      <vlanif>igb1.200</vlanif>
+    </vlan>
+  </vlans>
+  
+  <aliases>
+    <alias>
+      <name>RFC1918_Networks</name>
+      <type>network</type>
+      <address>10.0.0.0/8 172.16.0.0/12 192.168.0.0/16</address>
+      <descr>Private IPv4 address space</descr>
+    </alias>
+    <alias>
+      <name>WebServers</name>
+      <type>host</type>
+      <address>10.0.10.10 10.0.10.11 10.0.10.12</address>
+      <descr>DMZ web servers</descr>
+      <detail>WebServer1||WebServer2||WebServer3</detail>
+    </alias>
+    <alias>
+      <name>DatabaseServers</name>
+      <type>host</type>
+      <address>10.0.10.20 10.0.10.21</address>
+      <descr>DMZ database servers</descr>
+    </alias>
+    <alias>
+      <name>ManagementHosts</name>
+      <type>host</type>
+      <address>192.168.1.10 192.168.1.11</address>
+      <descr>Admin workstations</descr>
+    </alias>
+    <alias>
+      <name>WebPorts</name>
+      <type>port</type>
+      <address>80 443 8080 8443</address>
+      <descr>Common web service ports</descr>
+    </alias>
+  </aliases>
+  
+  <dhcpd>
+    <lan>
+      <enable/>
+      <range>
+        <from>192.168.1.100</from>
+        <to>192.168.1.199</to>
+      </range>
+      <dnsserver>192.168.1.1</dnsserver>
+      <dnsserver>8.8.8.8</dnsserver>
+      <gateway>192.168.1.1</gateway>
+      <domain>lan.example.com</domain>
+      <defaultleasetime>7200</defaultleasetime>
+      <maxleasetime>86400</maxleasetime>
+      <staticmap>
+        <mac>00:11:22:33:44:55</mac>
+        <ipaddr>192.168.1.50</ipaddr>
+        <hostname>printer1</hostname>
+        <descr>Office Printer</descr>
+      </staticmap>
+      <staticmap>
+        <mac>aa:bb:cc:dd:ee:ff</mac>
+        <ipaddr>192.168.1.51</ipaddr>
+        <hostname>nas1</hostname>
+        <descr>Network Storage</descr>
+      </staticmap>
+    </lan>
+    <opt2>
+      <enable/>
+      <range>
+        <from>10.0.20.100</from>
+        <to>10.0.20.199</to>
+      </range>
+      <dnsserver>10.0.20.1</dnsserver>
+      <gateway>10.0.20.1</gateway>
+      <domain>guest.example.com</domain>
+      <defaultleasetime>3600</defaultleasetime>
+      <maxleasetime>7200</maxleasetime>
+    </opt2>
+  </dhcpd>
+  
+  <filter>
+    <!-- LAN to WAN rules -->
+    <rule>
+      <type>pass</type>
+      <interface>lan</interface>
+      <ipprotocol>inet</ipprotocol>
+      <protocol>tcp/udp</protocol>
+      <source>
+        <network>lan</network>
+      </source>
+      <destination>
+        <any/>
+      </destination>
+      <descr>Allow LAN to any</descr>
+    </rule>
+    
+    <!-- WAN inbound rules -->
+    <rule>
+      <type>pass</type>
+      <interface>wan</interface>
+      <ipprotocol>inet</ipprotocol>
+      <protocol>tcp</protocol>
+      <source>
+        <any/>
+      </source>
+      <destination>
+        <address>WebServers</address>
+        <port>WebPorts</port>
+      </destination>
+      <descr>Allow web traffic to DMZ servers</descr>
+      <log/>
+    </rule>
+    
+    <!-- DMZ rules -->
+    <rule>
+      <type>pass</type>
+      <interface>opt1</interface>
+      <ipprotocol>inet</ipprotocol>
+      <protocol>tcp</protocol>
+      <source>
+        <address>WebServers</address>
+      </source>
+      <destination>
+        <address>DatabaseServers</address>
+        <port>3306</port>
+      </destination>
+      <descr>Allow web servers to database</descr>
+    </rule>
+    
+    <rule>
+      <type>pass</type>
+      <interface>opt1</interface>
+      <ipprotocol>inet</ipprotocol>
+      <protocol>tcp</protocol>
+      <source>
+        <address>ManagementHosts</address>
+      </source>
+      <destination>
+        <address>WebServers</address>
+        <port>22</port>
+      </destination>
+      <descr>Allow admin SSH to web servers</descr>
+    </rule>
+    
+    <rule>
+      <type>block</type>
+      <interface>opt1</interface>
+      <ipprotocol>inet</ipprotocol>
+      <protocol>any</protocol>
+      <source>
+        <network>opt1</network>
+      </source>
+      <destination>
+        <address>RFC1918_Networks</address>
+      </destination>
+      <descr>Block DMZ to private networks</descr>
+      <log/>
+    </rule>
+    
+    <!-- Guest network rules -->
+    <rule>
+      <type>pass</type>
+      <interface>opt2</interface>
+      <ipprotocol>inet</ipprotocol>
+      <protocol>tcp/udp</protocol>
+      <source>
+        <network>opt2</network>
+      </source>
+      <destination>
+        <any/>
+        <port>53</port>
+      </destination>
+      <descr>Allow guest DNS</descr>
+    </rule>
+    
+    <rule>
+      <type>pass</type>
+      <interface>opt2</interface>
+      <ipprotocol>inet</ipprotocol>
+      <protocol>tcp</protocol>
+      <source>
+        <network>opt2</network>
+      </source>
+      <destination>
+        <any/>
+        <port>80</port>
+      </destination>
+      <descr>Allow guest HTTP</descr>
+    </rule>
+    
+    <rule>
+      <type>pass</type>
+      <interface>opt2</interface>
+      <ipprotocol>inet</ipprotocol>
+      <protocol>tcp</protocol>
+      <source>
+        <network>opt2</network>
+      </source>
+      <destination>
+        <any/>
+        <port>443</port>
+      </destination>
+      <descr>Allow guest HTTPS</descr>
+    </rule>
+    
+    <rule>
+      <type>block</type>
+      <interface>opt2</interface>
+      <ipprotocol>inet</ipprotocol>
+      <protocol>any</protocol>
+      <source>
+        <network>opt2</network>
+      </source>
+      <destination>
+        <address>RFC1918_Networks</address>
+      </destination>
+      <descr>Block guest to private networks</descr>
+      <log/>
+    </rule>
+  </filter>
+  
+  <nat>
+    <!-- Port forwards -->
+    <rule>
+      <interface>wan</interface>
+      <protocol>tcp</protocol>
+      <source>
+        <any/>
+      </source>
+      <destination>
+        <address>wanip</address>
+        <port>80</port>
+      </destination>
+      <target>10.0.10.10</target>
+      <local-port>80</local-port>
+      <descr>HTTP to WebServer1</descr>
+    </rule>
+    
+    <rule>
+      <interface>wan</interface>
+      <protocol>tcp</protocol>
+      <source>
+        <any/>
+      </source>
+      <destination>
+        <address>wanip</address>
+        <port>443</port>
+      </destination>
+      <target>10.0.10.10</target>
+      <local-port>443</local-port>
+      <descr>HTTPS to WebServer1</descr>
+    </rule>
+    
+    <rule>
+      <interface>wan</interface>
+      <protocol>tcp</protocol>
+      <source>
+        <any/>
+      </source>
+      <destination>
+        <address>wanip</address>
+        <port>2222</port>
+      </destination>
+      <target>192.168.1.10</target>
+      <local-port>22</local-port>
+      <descr>SSH to admin host</descr>
+    </rule>
+    
+    <!-- Outbound NAT -->
+    <outbound>
+      <mode>automatic</mode>
+      <rule>
+        <interface>wan</interface>
+        <protocol>any</protocol>
+        <source>
+          <network>lan</network>
+        </source>
+        <destination>
+          <any/>
+        </destination>
+        <target/>
+        <descr>LAN to WAN NAT</descr>
+      </rule>
+      <rule>
+        <interface>wan</interface>
+        <protocol>any</protocol>
+        <source>
+          <network>opt1</network>
+        </source>
+        <destination>
+          <any/>
+        </destination>
+        <target/>
+        <descr>DMZ to WAN NAT</descr>
+      </rule>
+      <rule>
+        <interface>wan</interface>
+        <protocol>any</protocol>
+        <source>
+          <network>opt2</network>
+        </source>
+        <destination>
+          <any/>
+        </destination>
+        <target/>
+        <descr>Guest to WAN NAT</descr>
+      </rule>
+    </outbound>
+  </nat>
+  
+  <staticroutes>
+    <route>
+      <network>10.99.0.0/24</network>
+      <gateway>192.168.1.254</gateway>
+      <descr>Route to remote office network</descr>
+    </route>
+    <route>
+      <network>172.16.0.0/16</network>
+      <gateway>192.168.1.253</gateway>
+      <descr>Route to datacenter network</descr>
+    </route>
+  </staticroutes>
+  
+  <ipsec>
+    <phase1>
+      <ikeid>1</ikeid>
+      <iketype>ikev2</iketype>
+      <interface>wan</interface>
+      <remote-gateway>203.0.113.50</remote-gateway>
+      <descr>VPN to Remote Office</descr>
+      <authentication_method>pre_shared_key</authentication_method>
+      <pre-shared-key>MySecretPreSharedKey123</pre-shared-key>
+      <myid_type>myaddress</myid_type>
+      <peerid_type>peeraddress</peerid_type>
+      <encryption-algorithm>
+        <name>aes256</name>
+        <keylen>auto</keylen>
+      </encryption-algorithm>
+      <hash-algorithm>sha256</hash-algorithm>
+      <dhgroup>14</dhgroup>
+      <lifetime>28800</lifetime>
+    </phase1>
+    
+    <phase2>
+      <ikeid>1</ikeid>
+      <uniqid>5a3d2c1b</uniqid>
+      <mode>tunnel</mode>
+      <descr>Remote Office Tunnel</descr>
+      <localid>
+        <type>network</type>
+        <address>192.168.1.0</address>
+        <netbits>24</netbits>
+      </localid>
+      <remoteid>
+        <type>network</type>
+        <address>10.99.0.0</address>
+        <netbits>24</netbits>
+      </remoteid>
+      <protocol>esp</protocol>
+      <encryption-algorithm-option>
+        <name>aes256</name>
+        <keylen>auto</keylen>
+      </encryption-algorithm-option>
+      <hash-algorithm-option>hmac_sha256</hash-algorithm-option>
+      <pfsgroup>14</pfsgroup>
+      <lifetime>3600</lifetime>
+    </phase2>
+    
+    <phase1>
+      <ikeid>2</ikeid>
+      <iketype>ikev2</iketype>
+      <interface>wan</interface>
+      <remote-gateway>198.51.100.75</remote-gateway>
+      <descr>VPN to Datacenter</descr>
+      <authentication_method>pre_shared_key</authentication_method>
+      <pre-shared-key>AnotherSecretKey456</pre-shared-key>
+      <myid_type>myaddress</myid_type>
+      <peerid_type>peeraddress</peerid_type>
+      <encryption-algorithm>
+        <name>aes256</name>
+        <keylen>auto</keylen>
+      </encryption-algorithm>
+      <hash-algorithm>sha256</hash-algorithm>
+      <dhgroup>14</dhgroup>
+      <lifetime>28800</lifetime>
+    </phase1>
+    
+    <phase2>
+      <ikeid>2</ikeid>
+      <uniqid>9b8c7d6e</uniqid>
+      <mode>tunnel</mode>
+      <descr>Datacenter Tunnel</descr>
+      <localid>
+        <type>network</type>
+        <address>192.168.1.0</address>
+        <netbits>24</netbits>
+      </localid>
+      <remoteid>
+        <type>network</type>
+        <address>172.16.0.0</address>
+        <netbits>16</netbits>
+      </remoteid>
+      <protocol>esp</protocol>
+      <encryption-algorithm-option>
+        <name>aes256</name>
+        <keylen>auto</keylen>
+      </encryption-algorithm-option>
+      <hash-algorithm-option>hmac_sha256</hash-algorithm-option>
+      <pfsgroup>14</pfsgroup>
+      <lifetime>3600</lifetime>
+    </phase2>
+  </ipsec>
+  
+  <openvpn>
+    <openvpn-server>
+      <vpnid>1</vpnid>
+      <mode>server_tls</mode>
+      <protocol>udp</protocol>
+      <interface>wan</interface>
+      <local_port>1194</local_port>
+      <description>Road Warrior VPN</description>
+      <tunnel_network>10.8.0.0/24</tunnel_network>
+      <local_network>192.168.1.0/24</local_network>
+      <crypto>AES-256-CBC</crypto>
+      <digest>SHA256</digest>
+      <compression>adaptive</compression>
+      <push_reset/>
+      <custom_options>push "route 192.168.1.0 255.255.255.0"</custom_options>
+    </openvpn-server>
+  </openvpn>
+  
+</pfsense>
